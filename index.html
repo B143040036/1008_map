@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="zh-TW" class="dark">
+<html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -15,8 +15,7 @@
                         tcgDark: '#0B0F19',
                         tcgCard: '#131C2E',
                         tcgBorder: '#38BDF8',
-                        tcgGold: '#F59E0B',
-                        tcgPurple: '#8B5CF6'
+                        tcgGold: '#F59E0B'
                     }
                 }
             }
@@ -26,187 +25,128 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
     <!-- FontAwesome Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- Google Fonts Inter & Orbitron -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Orbitron:wght@500;700;900&display=swap" rel="stylesheet">
+    <!-- Google Fonts Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        body { font-family: 'Inter', sans-serif; }
-        .font-orbitron { font-family: 'Orbitron', sans-serif; }
-        /* Custom scrollbar */
-        ::-webkit-scrollbar { width: 6px; height: 6px; }
-        ::-webkit-scrollbar-track { background: #0B0F19; }
-        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
-        ::-webkit-scrollbar-thumb:hover { background: #64748B; }
-        /* Leaflet popup dark theme customization */
-        .leaflet-popup-content-wrapper, .leaflet-popup-tip {
-            background: #131C2E !important;
-            color: #F8FAFC !important;
-            border: 1px solid #38BDF8;
-            border-radius: 0.75rem;
-            box-shadow: 0 10px 25px -5px rgba(56, 189, 248, 0.3);
+        html, body {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            font-family: 'Inter', sans-serif;
+            background-color: #f1f5f9;
+            color: #1e293b;
         }
-        .leaflet-container {
-            font-family: 'Inter', sans-serif !important;
-            width: 100% !important;
-            height: 100% !important;
-            position: absolute !important;
+        /* Leaflet 地圖基本組成：地圖容器必須要有明確的寬高 */
+        #map {
+            width: 100%;
+            height: 100%;
+            position: absolute;
             top: 0;
             left: 0;
-            z-index: 0 !important;
+            z-index: 1;
         }
-        /* Custom card glow effect */
-        .tcg-glow {
-            box-shadow: 0 0 15px rgba(139, 92, 246, 0.25);
-            transition: all 0.3s ease;
-        }
-        .tcg-glow:hover {
-            box-shadow: 0 0 25px rgba(56, 189, 248, 0.4);
-            border-color: #38BDF8;
-        }
+        /* Custom scrollbar */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #f1f5f9; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
     </style>
 </head>
-<body class="bg-tcgDark text-slate-100 h-screen flex flex-col overflow-hidden">
+<body class="flex flex-col h-screen overflow-hidden">
 
-    <!-- Header / Navbar -->
-    <header class="bg-slate-900/90 backdrop-blur-md border-b border-slate-800 z-30 px-4 py-3 flex items-center justify-between shrink-0">
+    <!-- 頂部標題列 -->
+    <header class="h-16 bg-white border-b border-slate-200 z-30 px-4 flex items-center justify-between shadow-sm shrink-0">
         <div class="flex items-center space-x-3">
-            <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-purple-600 via-indigo-600 to-cyan-400 p-0.5 flex items-center justify-center shadow-lg shadow-purple-500/30">
-                <div class="w-full h-full bg-slate-900 rounded-[10px] flex items-center justify-center">
-                    <i class="fa-solid fa-gamepad text-cyan-400 text-lg"></i>
-                </div>
+            <div class="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center text-white shadow-md">
+                <i class="fa-solid fa-chess-rook text-lg"></i>
             </div>
             <div>
-                <h1 class="font-orbitron font-bold text-lg md:text-xl tracking-wider bg-gradient-to-r from-cyan-400 via-purple-300 to-amber-400 bg-clip-text text-transparent">
+                <h1 class="font-bold text-base md:text-lg text-slate-900">
                     高雄卡牌店地圖指南
                 </h1>
-                <p class="text-xs text-slate-400">Kaohsiung TCG & Board Game Shops Navigator</p>
+                <p class="text-xs text-slate-500">HTML 容器 ➔ Leaflet 地圖 ➔ OSM 圖磚 ➔ 標記、彈出視窗</p>
             </div>
         </div>
         <div class="flex items-center space-x-2">
-            <button onclick="toggleGuideModal(true)" class="px-3 py-1.5 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white rounded-lg text-xs font-semibold shadow-md shadow-cyan-900/30 transition flex items-center space-x-1.5">
+            <button onclick="toggleGuideModal(true)" class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold shadow transition flex items-center space-x-1.5">
                 <i class="fa-brands fa-github"></i>
-                <span class="hidden sm:inline">GitHub Pages 部署教學</span>
-                <span class="sm:hidden">部署教學</span>
+                <span>GitHub Pages 部署教學</span>
             </button>
-            <button id="sidebarToggle" onclick="toggleSidebar()" class="lg:hidden p-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-slate-300 transition">
-                <i class="fa-solid fa-bars text-lg"></i>
+            <button onclick="toggleSidebar()" class="lg:hidden p-2 bg-slate-100 hover:bg-slate-200 rounded-lg text-slate-700 transition">
+                <i class="fa-solid fa-bars text-base"></i>
             </button>
         </div>
     </header>
 
-    <!-- Main Content Layout with Map as absolute background -->
-    <div class="flex-1 flex relative overflow-hidden">
+    <div class="relative flex-1 w-full overflow-hidden flex">
         
-        <!-- Map Container (Absolute Background Filling Screen) -->
-        <main class="absolute inset-0 w-full h-full z-0">
-            <div id="map" class="w-full h-full"></div>
-            
-            <!-- Floating Map Legend / Quick Controls -->
-            <div class="absolute bottom-6 right-6 z-10 bg-slate-900/90 backdrop-blur-md border border-slate-700/80 p-3 rounded-xl shadow-2xl hidden sm:block max-w-xs pointer-events-none">
-                <div class="flex items-center space-x-2 text-xs font-semibold text-cyan-400 mb-1.5">
-                    <i class="fa-solid fa-shield-halved"></i>
-                    <span>TCG 戰術地圖圖例</span>
-                </div>
-                <p class="text-[11px] text-slate-300 leading-relaxed">
-                    點擊地圖標記或側邊欄卡片可查看詳細資訊、經營項目與 Google 導航。
-                </p>
-            </div>
-        </main>
+        <!-- 1. 地圖容器 (Leaflet Map Container) -->
+        <div id="map"></div>
 
-        <!-- Sidebar / Shop List Panel (Floating over map) -->
-        <aside id="sidebar" class="absolute lg:relative inset-y-0 left-0 z-20 w-80 md:w-96 bg-slate-900/95 backdrop-blur-xl border-r border-slate-800 flex flex-col transform -translate-x-full lg:translate-x-0 transition-transform duration-300 ease-in-out shadow-2xl">
-            <!-- Search & Filters -->
-            <div class="p-4 border-b border-slate-800 space-y-3 bg-slate-900/90">
+        <!-- 2. 側邊控制面板 (浮動於地圖上方) -->
+        <aside id="sidebar" class="absolute lg:relative inset-y-0 left-0 z-20 w-80 md:w-96 bg-white/95 backdrop-blur-md border-r border-slate-200 flex flex-col transform -translate-x-full lg:translate-x-0 transition-transform duration-300 ease-in-out shadow-2xl h-full">
+            <div class="p-4 border-b border-slate-200 space-y-3 bg-white/90 shrink-0">
                 <div class="relative">
                     <span class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
                         <i class="fa-solid fa-magnifying-glass"></i>
                     </span>
-                    <input type="text" id="searchInput" oninput="filterShops()" placeholder="搜尋店名、區域、經營項目..." 
-                           class="w-full pl-10 pr-4 py-2 bg-slate-950/70 border border-slate-700 rounded-xl text-sm focus:outline-none focus:border-cyan-400 text-slate-200 placeholder-slate-500 transition">
+                    <input type="text" id="searchInput" oninput="filterShops()" placeholder="搜尋店名、地址或經營項目..." 
+                           class="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-300 rounded-xl text-sm focus:outline-none focus:border-blue-500 text-slate-800 placeholder-slate-400">
                 </div>
-                <!-- Category Filter Pills -->
+                <!-- 類別篩選 -->
                 <div class="flex flex-wrap gap-1.5" id="categoryFilters">
-                    <button onclick="filterByCategory('all')" class="cat-pill px-2.5 py-1 rounded-lg text-xs font-medium bg-cyan-500 text-slate-950 transition active-cat">全部店家</button>
-                    <button onclick="filterByCategory('Pokemon')" class="cat-pill px-2.5 py-1 rounded-lg text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-300 transition">寶可夢</button>
-                    <button onclick="filterByCategory('YuGiOh')" class="cat-pill px-2.5 py-1 rounded-lg text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-300 transition">遊戲王</button>
-                    <button onclick="filterByCategory('BoardGame')" class="cat-pill px-2.5 py-1 rounded-lg text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-300 transition">桌遊</button>
+                    <button onclick="filterByCategory('all')" class="cat-pill px-2.5 py-1 rounded-lg text-xs font-medium bg-blue-600 text-white transition">全部店家</button>
+                    <button onclick="filterByCategory('Pokemon')" class="cat-pill px-2.5 py-1 rounded-lg text-xs font-medium bg-slate-100 hover:bg-slate-200 text-slate-700 transition">寶可夢</button>
+                    <button onclick="filterByCategory('YuGiOh')" class="cat-pill px-2.5 py-1 rounded-lg text-xs font-medium bg-slate-100 hover:bg-slate-200 text-slate-700 transition">遊戲王</button>
+                    <button onclick="filterByCategory('BoardGame')" class="cat-pill px-2.5 py-1 rounded-lg text-xs font-medium bg-slate-100 hover:bg-slate-200 text-slate-700 transition">桌遊</button>
                 </div>
             </div>
 
-            <!-- Shop List Container -->
-            <div id="shopList" class="flex-1 overflow-y-auto p-4 space-y-3 bg-slate-900/70">
-                <!-- Javascript will inject shop cards here -->
+            <!-- 店家列表 -->
+            <div id="shopList" class="flex-1 overflow-y-auto p-4 space-y-3">
+                <!-- Javascript 動態帶入 -->
             </div>
 
-            <!-- Footer info in sidebar -->
-            <div class="p-3 bg-slate-950/80 border-t border-slate-800 text-center text-xs text-slate-500">
-                共收錄 <span id="shopCount" class="text-cyan-400 font-bold">10</span> 家高雄精選卡牌/桌遊店
+            <div class="p-3 bg-slate-50 border-t border-slate-200 text-center text-xs text-slate-500 shrink-0">
+                已載入 <span id="shopCount" class="text-blue-600 font-bold">10</span> 筆高雄卡牌店即時資料點
             </div>
         </aside>
 
-        <!-- Mobile Sidebar Overlay -->
-        <div id="sidebarOverlay" onclick="toggleSidebar()" class="fixed inset-0 bg-black/60 z-10 hidden lg:hidden backdrop-blur-sm"></div>
-
+        <!-- 行動版遮罩 -->
+        <div id="sidebarOverlay" onclick="toggleSidebar()" class="fixed inset-0 bg-black/40 z-10 hidden lg:hidden backdrop-blur-xs"></div>
     </div>
 
-    <!-- GitHub Pages Guide Modal -->
-    <div id="guideModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-md hidden p-4">
-        <div class="bg-slate-900 border border-slate-700 w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
-            <!-- Modal Header -->
-            <div class="px-6 py-4 bg-slate-950 border-b border-slate-800 flex items-center justify-between">
+    <!-- GitHub 部署教學 Modal -->
+    <div id="guideModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs hidden p-4">
+        <div class="bg-white border border-slate-200 w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+            <div class="px-6 py-4 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
                 <div class="flex items-center space-x-2">
-                    <i class="fa-brands fa-github text-cyan-400 text-xl"></i>
-                    <h3 class="font-orbitron font-bold text-lg text-slate-100">GitHub Pages 部署教學指南</h3>
+                    <i class="fa-brands fa-github text-blue-600 text-xl"></i>
+                    <h3 class="font-bold text-lg text-slate-900">GitHub Pages 部署教學指南</h3>
                 </div>
-                <button onclick="toggleGuideModal(false)" class="text-slate-400 hover:text-white p-1 rounded-lg transition">
+                <button onclick="toggleGuideModal(false)" class="text-slate-400 hover:text-slate-700 p-1 rounded-lg transition">
                     <i class="fa-solid fa-xmark text-xl"></i>
                 </button>
             </div>
-            <!-- Modal Content -->
-            <div class="p-6 overflow-y-auto space-y-4 text-sm text-slate-300">
-                <div class="bg-cyan-950/30 border border-cyan-800/50 p-4 rounded-xl">
-                    <p class="text-cyan-300 font-medium mb-1">💡 什麼是 GitHub Pages？</p>
-                    <p class="text-slate-300 text-xs leading-relaxed">
-                        GitHub Pages 是一項免費的靜態網頁寄存服務。本網頁採用「單一 HTML 檔案（Single-File Architecture）」設計，您可以直接將此檔案上傳至 GitHub 並一鍵發布上線！
+            <div class="p-6 overflow-y-auto space-y-4 text-sm text-slate-600">
+                <div class="bg-blue-50 border border-blue-200 p-4 rounded-xl">
+                    <p class="text-blue-900 font-medium mb-1">💡 什麼是 GitHub Pages？</p>
+                    <p class="text-xs leading-relaxed text-blue-800">
+                        GitHub Pages 是一項免費的靜態網頁寄存服務。本網頁採用標準的單一 HTML 檔案架構結合 Leaflet.js 與 OpenStreetMap 圖磚，您可以直接將此檔案上傳至 GitHub 並一鍵發布上線！
                     </p>
                 </div>
-
-                <div class="space-y-3">
-                    <h4 class="font-bold text-slate-200 flex items-center space-x-2">
-                        <span class="w-6 h-6 rounded-full bg-purple-600 flex items-center justify-center text-xs text-white">1</span>
-                        <span>建立 GitHub 專案（Repository）</span>
-                    </h4>
-                    <p class="text-xs text-slate-400 pl-8">
-                        登入您的 GitHub 帳號，點擊右上角 <code class="bg-slate-800 px-1.5 py-0.5 rounded text-cyan-300">+</code> 選擇 <strong>New repository</strong>。將專案命名（例如 <code class="bg-slate-800 px-1.5 py-0.5 rounded text-cyan-300">kaohsiung-card-shops</code>），設定為公開，並點擊 Create repository。
-                    </p>
-
-                    <h4 class="font-bold text-slate-200 flex items-center space-x-2">
-                        <span class="w-6 h-6 rounded-full bg-purple-600 flex items-center justify-center text-xs text-white">2</span>
-                        <span>上傳或新增 index.html 檔案</span>
-                    </h4>
-                    <p class="text-xs text-slate-400 pl-8">
-                        將本程式碼儲存並命名為 <code class="bg-slate-800 px-1.5 py-0.5 rounded text-cyan-300">index.html</code>。透過網頁上傳按鈕上傳至該專案根目錄，並點擊 <strong>Commit changes</strong>。
-                    </p>
-
-                    <h4 class="font-bold text-slate-200 flex items-center space-x-2">
-                        <span class="w-6 h-6 rounded-full bg-purple-600 flex items-center justify-center text-xs text-white">3</span>
-                        <span>啟用 GitHub Pages 服務</span>
-                    </h4>
-                    <p class="text-xs text-slate-400 pl-8">
-                        進入專案的 <strong>Settings</strong> 頁面，點擊左側選單的 <strong>Pages</strong>。將 Build and deployment 設定為 <code class="bg-slate-800 px-1.5 py-0.5 rounded text-cyan-300">main</code> 與 <code class="bg-slate-800 px-1.5 py-0.5 rounded text-cyan-300">/ (root)</code>，點擊 <strong>Save</strong>。
-                    </p>
-
-                    <h4 class="font-bold text-slate-200 flex items-center space-x-2">
-                        <span class="w-6 h-6 rounded-full bg-purple-600 flex items-center justify-center text-xs text-white">4</span>
-                        <span>完成上線！</span>
-                    </h4>
-                    <p class="text-xs text-slate-400 pl-8">
-                        等待約 1 分鐘後重新整理頁面，上方就會出現您的專案線上網址，點擊即可隨時隨地開啟您的高雄卡牌店地圖指南！
-                    </p>
-                </div>
+                <ol class="list-decimal pl-5 space-y-2 text-xs text-slate-700">
+                    <li>登入您的 GitHub 帳號，點擊右上角 <strong class="text-slate-900">+</strong> 選擇 <strong>New repository</strong>。</li>
+                    <li>將專案命名（例如 <code class="bg-slate-100 px-1 text-blue-600">kaohsiung-card-shops</code>），設定為公開，點擊 Create repository。</li>
+                    <li>將本程式碼儲存並命名為 <code class="bg-slate-100 px-1 text-blue-600">index.html</code> 上傳至專案根目錄。</li>
+                    <li>進入專案的 <strong>Settings</strong> ➔ <strong>Pages</strong>，將 Build and deployment 設定為 <code class="bg-slate-100 px-1 text-blue-600">main</code> 與 <code class="bg-slate-100 px-1 text-blue-600">/ (root)</code> 並儲存。</li>
+                    <li>等待約 1 分鐘後重新整理頁面，即可透過專案線上網址隨時隨地開啟地圖！</li>
+                </ol>
             </div>
-            <!-- Modal Footer -->
-            <div class="px-6 py-3 bg-slate-950 border-t border-slate-800 flex justify-end">
-                <button onclick="toggleGuideModal(false)" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-xs font-semibold transition">
+            <div class="px-6 py-3 bg-slate-50 border-t border-slate-200 flex justify-end">
+                <button onclick="toggleGuideModal(false)" class="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-800 rounded-xl text-xs font-semibold transition">
                     我知道了
                 </button>
             </div>
@@ -217,7 +157,7 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
     
     <script>
-        // 高雄 10 家精選卡牌店與桌遊店資料集（包含 CSV 資料與座標）
+        // 高雄 10 家精選卡牌店與桌遊店資料集
         const cardShops = [
             {
                 id: 1,
@@ -228,8 +168,7 @@
                 district: "左營區",
                 categories: ["YuGiOh", "Pokemon", "BoardGame"],
                 tags: ["主流TCG", "寬敞對戰空間", "賽事舉辦"],
-                feature: "遊戲王、PTCG、WS、魔法風雲會等主流TCG及周邊，提供寬敞對戰空間與賽事",
-                landmark: "左營區"
+                feature: "遊戲王、PTCG、WS、魔法風雲會等主流TCG及周邊，提供寬敞對戰空間與賽事"
             },
             {
                 id: 2,
@@ -240,8 +179,7 @@
                 district: "鹽埕區",
                 categories: ["BoardGame", "Pokemon"],
                 tags: ["桌遊專賣", "卡套周邊", "對戰交流"],
-                feature: "桌遊與各類卡牌、卡套周邊、對戰交流區",
-                landmark: "鹽埕區"
+                feature: "桌遊與各類卡牌、卡套周邊、對戰交流區"
             },
             {
                 id: 3,
@@ -252,8 +190,7 @@
                 district: "三民區",
                 categories: ["Pokemon", "YuGiOh"],
                 tags: ["卡牌遊戲", "周邊販售", "對戰環境"],
-                feature: "各類卡牌遊戲、周邊販售與對戰環境",
-                landmark: "三民區"
+                feature: "各類卡牌遊戲、周邊販售與對戰環境"
             },
             {
                 id: 4,
@@ -264,8 +201,7 @@
                 district: "前金區",
                 categories: ["Pokemon"],
                 tags: ["寶可夢PTCG", "球員卡", "PSA鑑定"],
-                feature: "寶可夢 (PTCG)、球員卡、周邊及 PSA 鑑定服務",
-                landmark: "前金區"
+                feature: "寶可夢 (PTCG)、球員卡、周邊及 PSA 鑑定服務"
             },
             {
                 id: 5,
@@ -276,8 +212,7 @@
                 district: "前鎮區",
                 categories: ["BoardGame", "Pokemon"],
                 tags: ["桌遊鋪", "交流聚點", "卡牌商品"],
-                feature: "桌遊、卡牌遊戲相關商品與交流聚點",
-                landmark: "前鎮區"
+                feature: "桌遊、卡牌遊戲相關商品與交流聚點"
             },
             {
                 id: 6,
@@ -288,8 +223,7 @@
                 district: "三民區",
                 categories: ["BoardGame", "Pokemon", "YuGiOh"],
                 tags: ["集換式卡牌", "桌遊周邊", "老字號"],
-                feature: "桌遊與各式集換式卡牌、周邊商品販售",
-                landmark: "三民區"
+                feature: "桌遊與各式集換式卡牌、周邊商品販售"
             },
             {
                 id: 7,
@@ -300,8 +234,7 @@
                 district: "左營區",
                 categories: ["BoardGame", "YuGiOh"],
                 tags: ["對戰桌位", "聚會空間", "TCG卡牌"],
-                feature: "桌遊、TCG 卡牌、對戰桌位與聚會空間",
-                landmark: "左營區"
+                feature: "桌遊、TCG 卡牌、對戰桌位與聚會空間"
             },
             {
                 id: 8,
@@ -312,8 +245,7 @@
                 district: "左營區",
                 categories: ["YuGiOh", "Pokemon"],
                 tags: ["主流TCG", "遊戲王專區", "同好集散"],
-                feature: "主流 TCG、遊戲王、PTCG 卡片與周邊交流",
-                landmark: "左營區"
+                feature: "主流 TCG、遊戲王、PTCG 卡片與周邊交流"
             },
             {
                 id: 9,
@@ -324,8 +256,7 @@
                 district: "鳳山區",
                 categories: ["Pokemon", "BoardGame"],
                 tags: ["新手教學", "對戰交流", "鳳山據點"],
-                feature: "各類卡牌、周邊販售、新手教學與對戰",
-                landmark: "鳳山區"
+                feature: "各類卡牌、周邊販售、新手教學與對戰"
             },
             {
                 id: 10,
@@ -336,8 +267,7 @@
                 district: "前鎮區",
                 categories: ["Pokemon", "YuGiOh"],
                 tags: ["動漫周邊", "補充包", "卡牌配件"],
-                feature: "動漫周邊、TCG 補充包與卡牌配件",
-                landmark: "前鎮區"
+                feature: "動漫周邊、TCG 補充包與卡牌配件"
             }
         ];
 
@@ -345,28 +275,30 @@
         let markers = {};
         let activeCategory = 'all';
 
-        // 初始化 Leaflet 地圖
+        // 初始化 Leaflet 地圖並載入 OpenStreetMap 圖磚
         function initMap() {
+            // 3. 建立地圖並設定初始中心點與縮放層級
             map = L.map('map', {
                 center: [22.6273, 120.3014],
-                zoom: 13,
-                zoomControl: false
+                zoom: 13
             });
 
-            L.control.zoom({ position: 'topright' }).addTo(map);
-
-            // CARTO Dark Matter 磚塊圖層作為沉浸式底圖
-            L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
-                subdomains: 'abcd',
-                maxZoom: 19
+            // 4. 載入 OpenStreetMap 圖磚圖層
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                maxZoom: 19,
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
             }).addTo(map);
 
             renderMarkers(cardShops);
             renderShopList(cardShops);
+
+            // 確保容器正確渲染
+            setTimeout(() => {
+                map.invalidateSize();
+            }, 200);
         }
 
-        // 渲染地圖標記
+        // 渲染 Marker 標記與 Popup 彈出視窗
         function renderMarkers(shops) {
             Object.values(markers).forEach(m => map.removeLayer(m));
             markers = {};
@@ -375,36 +307,33 @@
                 const customIcon = L.divIcon({
                     className: 'custom-tcg-marker',
                     html: `
-                        <div class="relative flex items-center justify-center w-9 h-9 rounded-xl bg-slate-900 border-2 border-cyan-400 shadow-lg shadow-cyan-500/50 hover:scale-110 transition duration-200 cursor-pointer group">
-                            <i class="fa-solid fa-gamepad text-cyan-400 text-sm group-hover:text-amber-400"></i>
-                            <span class="absolute -bottom-1 -right-1 w-3 h-3 bg-purple-600 rounded-full border border-slate-900"></span>
+                        <div class="relative flex items-center justify-center w-8 h-8 rounded-full bg-blue-600 text-white shadow-lg border-2 border-white hover:scale-110 transition cursor-pointer">
+                            <i class="fa-solid fa-chess-rook text-xs"></i>
                         </div>
                     `,
-                    iconSize: [36, 36],
-                    iconAnchor: [18, 18],
-                    popupAnchor: [0, -20]
+                    iconSize: [32, 32],
+                    iconAnchor: [16, 16],
+                    popupAnchor: [0, -18]
                 });
 
                 const marker = L.marker([shop.lat, shop.lng], { icon: customIcon }).addTo(map);
 
+                // Popup 顯示重點資訊與經營項目
                 const popupContent = `
-                    <div class="p-1 space-y-2 max-w-xs">
-                        <div class="flex items-center justify-between border-b border-slate-700/80 pb-2">
-                            <span class="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded bg-cyan-950 text-cyan-300 font-bold border border-cyan-800">${shop.district}</span>
-                            <span class="text-xs text-amber-400 font-orbitron font-bold">TCG Verified</span>
+                    <div class="p-2 space-y-2 max-w-xs text-slate-800">
+                        <div class="flex items-center justify-between border-b border-slate-200 pb-1.5">
+                            <span class="text-[10px] px-2 py-0.5 rounded bg-blue-100 text-blue-700 font-bold">${shop.district}</span>
+                            <span class="text-xs text-amber-600 font-bold">TCG 店家</span>
                         </div>
-                        <h4 class="font-bold text-sm text-slate-100">${shop.name}</h4>
-                        <p class="text-xs text-slate-300"><i class="fa-solid fa-location-dot text-cyan-400 mr-1"></i>${shop.address}</p>
-                        <div class="bg-slate-950/70 p-2 rounded border border-slate-800 space-y-1">
-                            <p class="text-[11px] text-cyan-300 font-semibold"><i class="fa-solid fa-store mr-1"></i>經營項目與特色：</p>
-                            <p class="text-xs text-slate-300 leading-relaxed">${shop.feature}</p>
+                        <h4 class="font-bold text-sm text-slate-900">${shop.name}</h4>
+                        <p class="text-xs text-slate-600"><i class="fa-solid fa-location-dot text-blue-600 mr-1"></i>${shop.address}</p>
+                        <div class="bg-slate-50 p-2 rounded border border-slate-200 space-y-1">
+                            <p class="text-[11px] text-blue-700 font-semibold"><i class="fa-solid fa-store mr-1"></i>主要經營項目與特色：</p>
+                            <p class="text-xs text-slate-700 leading-relaxed">${shop.feature}</p>
                         </div>
-                        <div class="flex flex-wrap gap-1 pt-1">
-                            ${shop.tags.map(t => `<span class="text-[10px] bg-slate-800 text-purple-300 px-1.5 py-0.5 rounded border border-slate-700">#${t}</span>`).join('')}
-                        </div>
-                        <div class="pt-2 flex items-center justify-end">
+                        <div class="flex items-center justify-end pt-1">
                             <a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(shop.name + ' ' + shop.address)}" target="_blank" 
-                               class="px-3 py-1 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white rounded-lg text-xs font-semibold shadow transition flex items-center space-x-1">
+                               class="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold shadow transition flex items-center space-x-1">
                                 <i class="fa-solid fa-diamond-turn-right"></i>
                                 <span>Google 導航</span>
                             </a>
@@ -418,15 +347,15 @@
             });
         }
 
-        // 渲染側邊欄店家卡片列表
+        // 渲染側邊欄店家卡片
         function renderShopList(shops) {
             const container = document.getElementById('shopList');
             document.getElementById('shopCount').innerText = shops.length;
 
             if (shops.length === 0) {
                 container.innerHTML = `
-                    <div class="text-center py-12 text-slate-500 space-y-2">
-                        <i class="fa-solid fa-face-grimace text-3xl"></i>
+                    <div class="text-center py-12 text-slate-400 space-y-2">
+                        <i class="fa-solid fa-face-grimace text-2xl"></i>
                         <p class="text-xs">找不到符合條件的卡牌店</p>
                     </div>
                 `;
@@ -435,28 +364,25 @@
 
             container.innerHTML = shops.map(shop => `
                 <div id="shop-card-${shop.id}" onclick="focusShop(${shop.lat}, ${shop.lng}, ${shop.id})" 
-                     class="group p-3.5 bg-slate-950/80 hover:bg-slate-800/90 border border-slate-800 hover:border-cyan-500/60 rounded-xl cursor-pointer tcg-glow transition space-y-2">
+                     class="group p-3.5 bg-white hover:bg-slate-50 border border-slate-200 hover:border-blue-500 rounded-xl cursor-pointer transition space-y-2 shadow-xs">
                     <div class="flex items-start justify-between">
                         <div>
-                            <span class="text-[10px] uppercase font-bold text-cyan-400 bg-cyan-950/80 px-2 py-0.5 rounded border border-cyan-800/60">${shop.district}</span>
-                            <h3 class="font-bold text-sm text-slate-100 group-hover:text-cyan-300 mt-1 transition">${shop.name}</h3>
+                            <span class="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded">${shop.district}</span>
+                            <h3 class="font-bold text-sm text-slate-900 group-hover:text-blue-600 mt-1 transition">${shop.name}</h3>
                         </div>
-                        <div class="w-7 h-7 rounded-lg bg-slate-900 border border-slate-700 flex items-center justify-center text-slate-400 group-hover:text-amber-400 group-hover:border-amber-500/50 transition shrink-0">
+                        <div class="w-7 h-7 rounded-lg bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-500 group-hover:text-blue-600 group-hover:border-blue-300 transition shrink-0">
                             <i class="fa-solid fa-chess-rook text-xs"></i>
                         </div>
                     </div>
-                    <p class="text-xs text-slate-400 line-clamp-1"><i class="fa-solid fa-location-dot text-cyan-500 mr-1"></i>${shop.address}</p>
-                    <div class="bg-slate-900/90 p-2 rounded border border-slate-800/80">
-                        <p class="text-[11px] text-slate-300 line-clamp-2"><span class="text-cyan-400 font-semibold">項目：</span>${shop.feature}</p>
-                    </div>
-                    <div class="flex flex-wrap gap-1 pt-0.5">
-                        ${shop.tags.map(t => `<span class="text-[10px] bg-slate-900 text-slate-300 px-1.5 py-0.5 rounded border border-slate-800">#${t}</span>`).join('')}
+                    <p class="text-xs text-slate-500"><i class="fa-solid fa-location-dot text-blue-500 mr-1"></i>${shop.address}</p>
+                    <div class="bg-slate-50 p-2 rounded border border-slate-100">
+                        <p class="text-[11px] text-slate-700 leading-relaxed"><span class="text-blue-600 font-semibold">經營項目：</span>${shop.feature}</p>
                     </div>
                 </div>
             `).join('');
         }
 
-        // 點擊列表項目：移動地圖並彈出 Popup
+        // 點擊列表項目移動地圖
         function focusShop(lat, lng, id) {
             map.flyTo([lat, lng], 16, { duration: 1.2 });
             if (markers[id]) {
@@ -472,11 +398,11 @@
         // 高亮側邊欄卡片
         function highlightShopCard(id) {
             document.querySelectorAll('[id^="shop-card-"]').forEach(card => {
-                card.classList.remove('border-cyan-400', 'bg-slate-800/90', 'shadow-cyan-500/20');
+                card.classList.remove('border-blue-500', 'bg-blue-50/50', 'ring-2', 'ring-blue-400/20');
             });
             const activeCard = document.getElementById(`shop-card-${id}`);
             if (activeCard) {
-                activeCard.classList.add('border-cyan-400', 'bg-slate-800/90', 'shadow-cyan-500/20');
+                activeCard.classList.add('border-blue-500', 'bg-blue-50/50', 'ring-2', 'ring-blue-400/20');
                 activeCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
             }
         }
@@ -497,17 +423,15 @@
             renderShopList(filtered);
         }
 
-        // 類別按鈕篩選
+        // 類別篩選
         function filterByCategory(category) {
             activeCategory = category;
-            
             document.querySelectorAll('.cat-pill').forEach(btn => {
-                btn.classList.remove('bg-cyan-500', 'text-slate-950');
-                btn.classList.add('bg-slate-800', 'hover:bg-slate-700', 'text-slate-300');
+                btn.classList.remove('bg-blue-600', 'text-white');
+                btn.classList.add('bg-slate-100', 'hover:bg-slate-200', 'text-slate-700');
             });
-            event.target.classList.remove('bg-slate-800', 'hover:bg-slate-700', 'text-slate-300');
-            event.target.classList.add('bg-cyan-500', 'text-slate-950');
-
+            event.target.classList.remove('bg-slate-100', 'hover:bg-slate-200', 'text-slate-700');
+            event.target.classList.add('bg-blue-600', 'text-white');
             filterShops();
         }
 
