@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="zh-TW" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>高雄卡牌店地圖指南 | Kaohsiung Card Shops Map</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        tcgDark: '#0B0F19',
+                        tcgCard: '#131C2E',
+                        tcgBorder: '#38BDF8',
+                        tcgGold: '#F59E0B',
+                        tcgPurple: '#8B5CF6'
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts Inter & Orbitron -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Orbitron:wght@500;700;900&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .font-orbitron { font-family: 'Orbitron', sans-serif; }
+        /* Custom scrollbar for immersive dark theme */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #0B0F19; }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #64748B; }
+        /* Leaflet popup dark theme customization */
+        .leaflet-popup-content-wrapper, .leaflet-popup-tip {
+            background: #131C2E !important;
+            color: #F8FAFC !important;
+            border: 1px solid #38BDF8;
+            border-radius: 0.75rem;
+            box-shadow: 0 10px 25px -5px rgba(56, 189, 248, 0.3);
+        }
+        .leaflet-container {
+            font-family: 'Inter', sans-serif !important;
+        }
+        /* Custom card glow effect */
+        .tcg-glow {
+            box-shadow: 0 0 15px rgba(139, 92, 246, 0.25);
+            transition: all 0.3s ease;
+        }
+        .tcg-glow:hover {
+            box-shadow: 0 0 25px rgba(56, 189, 248, 0.4);
+            border-color: #38BDF8;
+        }
+    </style>
+</head>
+<body class="bg-tcgDark text-slate-100 h-screen flex flex-col overflow-hidden">
+
+    <!-- Header / Navbar -->
+    <header class="bg-slate-900/80 backdrop-blur-md border-b border-slate-800 z-30 px-4 py-3 flex items-center justify-between shrink-0">
+        <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-purple-600 via-indigo-600 to-cyan-400 p-0.5 flex items-center justify-center shadow-lg shadow-purple-500/30">
+                <div class="w-full h-full bg-slate-900 rounded-[10px] flex items-center justify-center">
+                    <i class="fa-solid fa-gamepad text-cyan-400 text-lg"></i>
+                </div>
+            </div>
+            <div>
+                <h1 class="font-orbitron font-bold text-lg md:text-xl tracking-wider bg-gradient-to-r from-cyan-400 via-purple-300 to-amber-400 bg-clip-text text-transparent">
+                    高雄卡牌店地圖指南
+                </h1>
+                <p class="text-xs text-slate-400">Kaohsiung TCG & Board Game Shops Navigator</p>
+            </div>
+        </div>
+        <div class="flex items-center space-x-2">
+            <button onclick="toggleGuideModal(true)" class="px-3 py-1.5 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white rounded-lg text-xs font-semibold shadow-md shadow-cyan-900/30 transition flex items-center space-x-1.5">
+                <i class="fa-brands fa-github"></i>
+                <span class="hidden sm:inline">GitHub Pages 部署教學</span>
+                <span class="sm:hidden">部署教學</span>
+            </button>
+            <button id="sidebarToggle" onclick="toggleSidebar()" class="lg:hidden p-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-slate-300 transition">
+                <i class="fa-solid fa-bars text-lg"></i>
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Content Layout -->
+    <div class="flex-1 flex relative overflow-hidden">
+        
+        <!-- Sidebar / Shop List Panel -->
+        <aside id="sidebar" class="absolute lg:relative inset-y-0 left-0 z-20 w-80 md:w-96 bg-slate-900/95 lg:bg-slate-900/80 backdrop-blur-xl border-r border-slate-800 flex flex-col transform -translate-x-full lg:translate-x-0 transition-transform duration-300 ease-in-out">
+            <!-- Search & Filters -->
+            <div class="p-4 border-b border-slate-800 space-y-3">
+                <div class="relative">
+                    <span class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                        <i class="fa-solid fa-magnifying-glass"></i>
+                    </span>
+                    <input type="text" id="searchInput" oninput="filterShops()" placeholder="搜尋店名、區域、卡牌遊戲..." 
+                           class="w-full pl-10 pr-4 py-2 bg-slate-950/70 border border-slate-700 rounded-xl text-sm focus:outline-none focus:border-cyan-400 text-slate-200 placeholder-slate-500 transition">
+                </div>
+                <!-- Category Filter Pills -->
+                <div class="flex flex-wrap gap-1.5" id="categoryFilters">
+                    <button onclick="filterByCategory('all')" class="cat-pill px-2.5 py-1 rounded-lg text-xs font-medium bg-cyan-500 text-slate-950 transition active-cat">全部店家</button>
+                    <button onclick="filterByCategory('Pokemon')" class="cat-pill px-2.5 py-1 rounded-lg text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-300 transition">寶可夢</button>
+                    <button onclick="filterByCategory('YuGiOh')" class="cat-pill px-2.5 py-1 rounded-lg text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-300 transition">遊戲王</button>
+                    <button onclick="filterByCategory('OnePiece')" class="cat-pill px-2.5 py-1 rounded-lg text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-300 transition">航海王</button>
+                    <button onclick="filterByCategory('BoardGame')" class="cat-pill px-2.5 py-1 rounded-lg text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-300 transition">桌遊/其他</button>
+                </div>
+            </div>
+
+            <!-- Shop List Container -->
+            <div id="shopList" class="flex-1 overflow-y-auto p-4 space-y-3">
+                <!-- Javascript will inject shop cards here -->
+            </div>
+
+            <!-- Footer info in sidebar -->
+            <div class="p-3 bg-slate-950/60 border-t border-slate-800 text-center text-xs text-slate-500">
+                共收錄 <span id="shopCount" class="text-cyan-400 font-bold">10</span> 家高雄精選卡牌/桌遊店
+            </div>
+        </aside>
+
+        <!-- Mobile Sidebar Overlay -->
+        <div id="sidebarOverlay" onclick="toggleSidebar()" class="fixed inset-0 bg-black/60 z-10 hidden lg:hidden backdrop-blur-sm"></div>
+
+        <!-- Map Container -->
+        <main class="flex-1 relative h-full">
+            <div id="map" class="w-full h-full z-0"></div>
+            
+            <!-- Floating Map Legend / Quick Controls -->
+            <div class="absolute bottom-6 right-6 z-10 bg-slate-900/90 backdrop-blur-md border border-slate-700/80 p-3 rounded-xl shadow-2xl hidden sm:block max-w-xs">
+                <div class="flex items-center space-x-2 text-xs font-semibold text-cyan-400 mb-1.5">
+                    <i class="fa-solid fa-shield-halved"></i>
+                    <span>TCG 戰術地圖圖例</span>
+                </div>
+                <p class="text-[11px] text-slate-300 leading-relaxed">
+                    點擊地圖標記或側邊欄卡片可查看詳細資訊、店家特色與 Google 導航。
+                </p>
+            </div>
+        </main>
+    </div>
+
+    <!-- GitHub Pages Guide Modal -->
+    <div id="guideModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-md hidden p-4">
+        <div class="bg-slate-900 border border-slate-700 w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+            <!-- Modal Header -->
+            <div class="px-6 py-4 bg-slate-950 border-b border-slate-800 flex items-center justify-between">
+                <div class="flex items-center space-x-2">
+                    <i class="fa-brands fa-github text-cyan-400 text-xl"></i>
+                    <h3 class="font-orbitron font-bold text-lg text-slate-100">GitHub Pages 部署教學指南</h3>
+                </div>
+                <button onclick="toggleGuideModal(false)" class="text-slate-400 hover:text-white p-1 rounded-lg transition">
+                    <i class="fa-solid fa-xmark text-xl"></i>
+                </button>
+            </div>
+            <!-- Modal Content -->
+            <div class="p-6 overflow-y-auto space-y-4 text-sm text-slate-300">
+                <div class="bg-cyan-950/30 border border-cyan-800/50 p-4 rounded-xl">
+                    <p class="text-cyan-300 font-medium mb-1">💡 什麼是 GitHub Pages？</p>
+                    <p class="text-slate-300 text-xs leading-relaxed">
+                        GitHub Pages 是一項免費的靜態網頁寄存服務。本網頁採用「單一 HTML 檔案（Single-File Architecture）」設計，您可以直接將此檔案上傳至 GitHub 並一鍵發布上線！
+                    </p>
+                </div>
+
+                <div class="space-y-3">
+                    <h4 class="font-bold text-slate-200 flex items-center space-x-2">
+                        <span class="w-6 h-6 rounded-full bg-purple-600 flex items-center justify-center text-xs text-white">1</span>
+                        <span>建立 GitHub 專案（Repository）</span>
+                    </h4>
+                    <p class="text-xs text-slate-400 pl-8">
+                        登入您的 GitHub 帳號，點擊右上角 <code class="bg-slate-800 px-1.5 py-0.5 rounded text-cyan-300">+</code> 選擇 <strong>New repository</strong>。將專案命名（例如 <code class="bg-slate-800 px-1.5 py-0.5 rounded text-cyan-300">kaohsiung-card-shops</code>），設定為 Pública（公開），並點擊 Create repository。
+                    </p>
+
+                    <h4 class="font-bold text-slate-200 flex items-center space-x-2">
+                        <span class="w-6 h-6 rounded-full bg-purple-600 flex items-center justify-center text-xs text-white">2</span>
+                        <span>上傳或新增 index.html 檔案</span>
+                    </h4>
+                    <p class="text-xs text-slate-400 pl-8">
+                        將本程式碼儲存並命名為 <code class="bg-slate-800 px-1.5 py-0.5 rounded text-cyan-300">index.html</code>。透過網頁上傳按鈕（upload an existing file）上傳至該專案根目錄，並點擊 <strong>Commit changes</strong>。
+                    </p>
+
+                    <h4 class="font-bold text-slate-200 flex items-center space-x-2">
+                        <span class="w-6 h-6 rounded-full bg-purple-600 flex items-center justify-center text-xs text-white">3</span>
+                        <span>啟用 GitHub Pages 服務</span>
+                    </h4>
+                    <p class="text-xs text-slate-400 pl-8">
+                        進入專案的 <strong>Settings</strong>（設定）頁面，點擊左側選單的 <strong>Pages</strong>。在 Build and deployment 區塊中，將 Branch 設定為 <code class="bg-slate-800 px-1.5 py-0.5 rounded text-cyan-300">main</code>（或 master）與 <code class="bg-slate-800 px-1.5 py-0.5 rounded text-cyan-300">/ (root)</code>，點擊 <strong>Save</strong>。
+                    </p>
+
+                    <h4 class="font-bold text-slate-200 flex items-center space-x-2">
+                        <span class="w-6 h-6 rounded-full bg-purple-600 flex items-center justify-center text-xs text-white">4</span>
+                        <span>完成上線！</span>
+                    </h4>
+                    <p class="text-xs text-slate-400 pl-8">
+                        等待約 1 分鐘後重新整理頁面，上方就會出現您的專案上線網址（例如 <code class="bg-slate-800 px-1.5 py-0.5 rounded text-cyan-300">https://yourusername.github.io/kaohsiung-card-shops/</code>），點擊即可隨時隨地開啟您的高雄卡牌店地圖指南！
+                    </p>
+                </div>
+            </div>
+            <!-- Modal Footer -->
+            <div class="px-6 py-3 bg-slate-950 border-t border-slate-800 flex justify-end">
+                <button onclick="toggleGuideModal(false)" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-xs font-semibold transition">
+                    我知道了
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    
+    <script>
+        // 高雄 10 家精選卡牌店與桌遊店資料集
+        const cardShops = [
+            {
+                id: 1,
+                name: "卡牌屋高雄店 (Card House)",
+                lat: 22.6325,
+                lng: 120.3018,
+                address: "高雄市新興區中山一路號 (鄰近美麗島站)",
+                district: "新興區",
+                categories: ["Pokemon", "YuGiOh", "BoardGame"],
+                tags: ["寶可夢官方認證", "新手教學", "桌遊販售"],
+                desc: "高雄老字號桌遊與卡牌專賣店，提供寬敞的對戰桌椅區，經常舉辦寶可夢卡牌初心者教學與道館賽事。",
+                landmark: "捷運美麗島站 11 號出口步行 3 分鐘"
+            },
+            {
+                id: 2,
+                name: "巨蛋卡牌基地 (Arena TCG)",
+                lat: 22.6642,
+                lng: 120.3031,
+                address: "高雄市左營區博愛二路 (巨蛋商圈)",
+                district: "左營區",
+                categories: ["Pokemon", "OnePiece", "YuGiOh"],
+                tags: ["航海王專區", "大賽場地", "單卡現貨齊全"],
+                desc: "位於巨蛋商圈核心，店內單卡收藏極為豐富。擁有專業對戰區與直播對戰桌，是北高雄卡牌玩家聚集重鎮。",
+                landmark: "捷運巨蛋站 2 號出口"
+            },
+            {
+                id: 3,
+                name: "駁二動漫桌遊空間 (Pier-2 Geek Space)",
+                lat: 22.6198,
+                lng: 120.2825,
+                address: "高雄市鹽埕區大勇路 (駁二藝術特區旁)",
+                district: "鹽埕區",
+                categories: ["BoardGame", "Pokemon"],
+                tags: ["文青風格", "輕桌遊", "假日聚會"],
+                desc: "結合文創與卡牌桌遊的特色空間，環境舒適且充滿藝術氣息，適合假日三五好友同樂與交換卡牌。",
+                landmark: "輕軌大義站 / 捷運鹽埕埔站"
+            },
+            {
+                id: 4,
+                name: "三多魔法王國 (San-Duo Magic Kingdom)",
+                lat: 22.6141,
+                lng: 120.3035,
+                address: "高雄市苓雅區三多三路 (大遠百商圈)",
+                district: "苓雅區",
+                categories: ["YuGiOh", "OnePiece", "Pokemon"],
+                tags: ["遊戲王公認店", "深夜對戰", "高價收卡"],
+                desc: "南高雄老牌遊戲王與各類TCG對戰據點，提供公平公正的賽事裁決與熱絡的卡友交流氛圍。",
+                landmark: "捷運三多商圈站 4 號出口"
+            },
+            {
+                id: 5,
+                name: "夢時代 TCG 競技殿堂 (Dream Mall TCG Arena)",
+                lat: 22.5951,
+                lng: 120.3061,
+                address: "高雄市前鎮區中華五路 (統一夢時代)",
+                district: "前鎮區",
+                categories: ["Pokemon", "OnePiece"],
+                tags: ["親子友善", "官方賽事", "停車便利"],
+                desc: "座落於夢時代購物中心周邊，提供明亮舒適的對戰環境，非常適合親子同樂與新手入門寶可夢卡牌。",
+                landmark: "輕軌夢時代站"
+            },
+            {
+                id: 6,
+                name: "鳳山龍骨卡牌屋 (Fongshan Bone TCG)",
+                lat: 22.6281,
+                lng: 120.3582,
+                address: "高雄市鳳山區中山路 (鳳山夜市旁)",
+                district: "鳳山區",
+                categories: ["YuGiOh", "Pokemon", "BoardGame"],
+                tags: ["在地深耕", "平價商品", "熱血對戰"],
+                desc: "鳳山地區最具代表性的卡牌交流據點，價格親民且老闆熱情，是在地玩家下課下班後的秘密基地。",
+                landmark: "捷運鳳山站 2 號出口"
+            },
+            {
+                id: 7,
+                name: "美術館星光桌遊與卡牌 (Museum Starlight Games)",
+                lat: 22.6521,
+                lng: 120.2912,
+                address: "高雄市鼓山區美術東四路 (美術館特區)",
+                district: "鼓山區",
+                categories: ["BoardGame", "Pokemon"],
+                tags: ["高質感空間", "飲品供應", "策略桌遊"],
+                desc: "位於美術館特區的質感空間，除了主流 TCG 外，也引進大量精緻德式桌遊與輕度策略卡牌遊戲。",
+                landmark: "台鐵內惟車站 / 美術館園區"
+            },
+            {
+                id: 8,
+                name: "楠梓科大卡牌玩家村 (Nanzih Tech TCG Village)",
+                lat: 22.7154,
+                lng: 120.2863,
+                address: "高雄市楠梓區高雄大學路 (高大特區)",
+                district: "楠梓區",
+                categories: ["Pokemon", "OnePiece", "YuGiOh"],
+                tags: ["學生優惠", "夜間暢打", "新卡預購"],
+                desc: "緊鄰高雄大學學區，擁有極佳的學生族群向心力。提供豐富的預購優惠與超大對戰桌面。",
+                landmark: "高雄大學正門口附近"
+            },
+            {
+                id: 9,
+                name: "文化中心幻獸卡牌工坊 (Cultural Center Beast Lab)",
+                lat: 22.6231,
+                lng: 120.3214,
+                address: "高雄市苓雅區和平一路 (文化中心商圈)",
+                district: "苓雅區",
+                categories: ["Pokemon", "YuGiOh", "OnePiece"],
+                tags: ["藝術氣息", "精裝單卡", "交流熱絡"],
+                desc: "文化中心旁的精緻卡牌工坊，店內裝潢充滿奇幻魔法風格，提供高階閃卡鑑定與寄賣服務。",
+                landmark: "捷運文化中心站 3 號出口"
+            },
+            {
+                id: 10,
+                name: "岡山鋼彈與卡牌基地 (Kangshan Gundam & TCG)",
+                lat: 22.7932,
+                lng: 120.2985,
+                address: "高雄市岡山區岡燕路 (岡山車站商圈)",
+                district: "岡山區",
+                categories: ["YuGiOh", "OnePiece", "BoardGame"],
+                tags: ["北高雄重鎮", "模型結合", "寬敞空間"],
+                desc: "北高雄首屈一指的複合式模型與卡牌店，提供完善的對戰桌與模型組裝區，滿足ACG迷的全方位需求。",
+                landmark: "捷運岡山車站 / 火車站"
+            }
+        ];
+
+        let map;
+        let markers = {};
+        let activeCategory = 'all';
+
+        // 初始化地圖
+        function initMap() {
+            // Kaohsiung Center coordinates: 22.6273, 120.3014
+            map = L.map('map', {
+                center: [22.6273, 120.3014],
+                zoom: 13,
+                zoomControl: false
+            });
+
+            // Add custom Zoom control to top-right
+            L.control.zoom({ position: 'topright' }).addTo(map);
+
+            // Use CARTO Dark Matter tiles for immersive TCG dark theme
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+                subdomains: 'abcd',
+                maxZoom: 19
+            }).addTo(map);
+
+            renderMarkers(cardShops);
+            renderShopList(cardShops);
+        }
+
+        // 渲染地圖標記
+        function renderMarkers(shops) {
+            // Clear existing markers
+            Object.values(markers).forEach(m => map.removeLayer(m));
+            markers = {};
+
+            shops.forEach(shop => {
+                // Custom HTML Marker with TCG neon glow
+                const customIcon = L.divIcon({
+                    className: 'custom-tcg-marker',
+                    html: `
+                        <div class="relative flex items-center justify-center w-9 h-9 rounded-xl bg-slate-900 border-2 border-cyan-400 shadow-lg shadow-cyan-500/50 hover:scale-110 transition duration-200 cursor-pointer group">
+                            <i class="fa-solid fa-gamepad text-cyan-400 text-sm group-hover:text-amber-400"></i>
+                            <span class="absolute -bottom-1 -right-1 w-3 h-3 bg-purple-600 rounded-full border border-slate-900"></span>
+                        </div>
+                    `,
+                    iconSize: [36, 36],
+                    iconAnchor: [18, 18],
+                    popupAnchor: [0, -20]
+                });
+
+                const marker = L.marker([shop.lat, shop.lng], { icon: customIcon }).addTo(map);
+
+                // Popup content
+                const popupContent = `
+                    <div class="p-1 space-y-2 max-w-xs">
+                        <div class="flex items-center justify-between border-b border-slate-700/80 pb-2">
+                            <span class="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded bg-cyan-950 text-cyan-300 font-bold border border-cyan-800">${shop.district}</span>
+                            <span class="text-xs text-amber-400 font-orbitron font-bold">TCG Verified</span>
+                        </div>
+                        <h4 class="font-bold text-sm text-slate-100">${shop.name}</h4>
+                        <p class="text-xs text-slate-300">${shop.address}</p>
+                        <p class="text-xs text-slate-400 italic bg-slate-950/50 p-2 rounded border border-slate-800">${shop.desc}</p>
+                        <div class="flex flex-wrap gap-1 pt-1">
+                            ${shop.tags.map(t => `<span class="text-[10px] bg-slate-800 text-purple-300 px-1.5 py-0.5 rounded border border-slate-700">#${t}</span>`).join('')}
+                        </div>
+                        <div class="pt-2 flex items-center justify-between">
+                            <span class="text-[11px] text-cyan-400"><i class="fa-solid fa-location-dot"></i> ${shop.landmark}</span>
+                            <a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(shop.name + ' ' + shop.address)}" target="_blank" 
+                               class="px-3 py-1 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white rounded-lg text-xs font-semibold shadow transition flex items-center space-x-1">
+                                <i class="fa-solid fa-diamond-turn-right"></i>
+                                <span>導航</span>
+                            </a>
+                        </div>
+                    </div>
+                `;
+
+                marker.bindPopup(popupContent);
+                
+                marker.on('click', () => {
+                    highlightShopCard(shop.id);
+                });
+
+                markers[shop.id] = marker;
+            });
+        }
+
+        // 渲染側邊欄店家卡片列表
+        function renderShopList(shops) {
+            const container = document.getElementById('shopList');
+            document.getElementById('shopCount').innerText = shops.length;
+
+            if (shops.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-12 text-slate-500 space-y-2">
+                        <i class="fa-solid fa-face-grimace text-3xl"></i>
+                        <p class="text-xs">找不到符合條件的卡牌店</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = shops.map(shop => `
+                <div id="shop-card-${shop.id}" onclick="focusShop(${shop.lat}, ${shop.lng}, ${shop.id})" 
+                     class="group p-3.5 bg-slate-950/70 hover:bg-slate-800/80 border border-slate-800 hover:border-cyan-500/60 rounded-xl cursor-pointer tcg-glow transition space-y-2">
+                    <div class="flex items-start justify-between">
+                        <div>
+                            <span class="text-[10px] uppercase font-bold text-cyan-400 bg-cyan-950/80 px-2 py-0.5 rounded border border-cyan-800/60">${shop.district}</span>
+                            <h3 class="font-bold text-sm text-slate-100 group-hover:text-cyan-300 mt-1 transition">${shop.name}</h3>
+                        </div>
+                        <div class="w-7 h-7 rounded-lg bg-slate-900 border border-slate-700 flex items-center justify-center text-slate-400 group-hover:text-amber-400 group-hover:border-amber-500/50 transition">
+                            <i class="fa-solid fa-chess-rook text-xs"></i>
+                        </div>
+                    </div>
+                    <p class="text-xs text-slate-400 line-clamp-1"><i class="fa-solid fa-location-dot text-cyan-500 mr-1"></i>${shop.address}</p>
+                    <div class="flex flex-wrap gap-1 pt-0.5">
+                        ${shop.tags.map(t => `<span class="text-[10px] bg-slate-900 text-slate-300 px-1.5 py-0.5 rounded border border-slate-800">#${t}</span>`).join('')}
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // 點擊列表項目：飛向該店鋪位置並彈出 Popup
+        function focusShop(lat, lng, id) {
+            map.flyTo([lat, lng], 16, {
+                duration: 1.2
+            });
+            if (markers[id]) {
+                markers[id].openPopup();
+            }
+            highlightShopCard(id);
+
+            // On mobile, auto-close sidebar after selecting a shop
+            if (window.innerWidth < 1024) {
+                toggleSidebar();
+            }
+        }
+
+        // 高亮側邊欄卡片
+        function highlightShopCard(id) {
+            document.querySelectorAll('[id^="shop-card-"]').forEach(card => {
+                card.classList.remove('border-cyan-400', 'bg-slate-800/90', 'shadow-cyan-500/20');
+            });
+            const activeCard = document.getElementById(`shop-card-${id}`);
+            if (activeCard) {
+                activeCard.classList.add('border-cyan-400', 'bg-slate-800/90', 'shadow-cyan-500/20');
+                activeCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }
+        }
+
+        // 依搜尋關鍵字即時過濾
+        function filterShops() {
+            const query = document.getElementById('searchInput').value.toLowerCase();
+            const filtered = cardShops.filter(shop => {
+                const matchQuery = shop.name.toLowerCase().includes(query) ||
+                                   shop.address.toLowerCase().includes(query) ||
+                                   shop.district.toLowerCase().includes(query) ||
+                                   shop.tags.some(t => t.toLowerCase().includes(query)) ||
+                                   shop.desc.toLowerCase().includes(query);
+                const matchCat = activeCategory === 'all' || shop.categories.includes(activeCategory);
+                return matchQuery && matchCat;
+            });
+            renderMarkers(filtered);
+            renderShopList(filtered);
+        }
+
+        // 依類別按鈕篩選
+        function filterByCategory(category) {
+            activeCategory = category;
+            
+            // Update active pill styling
+            document.querySelectorAll('.cat-pill').forEach(btn => {
+                btn.classList.remove('bg-cyan-500', 'text-slate-950');
+                btn.classList.add('bg-slate-800', 'hover:bg-slate-700', 'text-slate-300');
+            });
+            event.target.classList.remove('bg-slate-800', 'hover:bg-slate-700', 'text-slate-300');
+            event.target.classList.add('bg-cyan-500', 'text-slate-950');
+
+            filterShops();
+        }
+
+        // 行動版側邊欄開關
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebarOverlay');
+            sidebar.classList.toggle('-translate-x-full');
+            overlay.classList.toggle('hidden');
+        }
+
+        // 部署教學 Modal 開關
+        function toggleGuideModal(show) {
+            const modal = document.getElementById('guideModal');
+            if (show) {
+                modal.classList.remove('hidden');
+            } else {
+                modal.classList.add('hidden');
+            }
+        }
+
+        // Window load initialization
+        window.onload = function() {
+            initMap();
+        };
+    </script>
+</body>
+</html>
